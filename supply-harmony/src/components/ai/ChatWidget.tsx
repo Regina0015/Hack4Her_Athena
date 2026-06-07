@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, X, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import pythiaBot from "@/assets/pythia-bot.png";
-import pythiaAvatar from "@/assets/pythia-avatar.png";
+// Imagen EXCLUSIVA del chatbot (distinta del resto de la app).
+import chatbot from "@/assets/chatbot.png";
 import { Sparkline } from "@/components/platform/charts";
 import { api } from "@/lib/api/client";
 
@@ -68,7 +68,7 @@ export function ChatWidget({ mode = "admin" }: { mode?: "admin" | "cliente" }) {
         )}
         style={{ animation: open ? undefined : "pulse-ring 2.4s ease-out infinite" }}
       >
-        <img src={pythiaAvatar} alt="" width={56} height={56} className="h-12 w-12 drop-shadow" />
+        <img src={chatbot} alt="" width={56} height={56} className="h-12 w-12 object-contain drop-shadow" />
       </button>
 
       {/* Panel */}
@@ -80,7 +80,7 @@ export function ChatWidget({ mode = "admin" }: { mode?: "admin" | "cliente" }) {
       >
         {/* Header Pythia */}
         <div className="relative flex items-center gap-3 bg-gradient-ai px-4 py-3.5">
-          <img src={pythiaBot} alt="" width={44} height={44} className="h-11 w-11 drop-shadow" />
+          <img src={chatbot} alt="" width={44} height={44} className="h-11 w-11 object-contain drop-shadow" />
           <div className="flex-1 leading-tight">
             <p className="text-sm font-bold text-ai-foreground">Pythia Bot</p>
             <p className="flex items-center gap-1.5 text-xs text-ai-foreground/80">

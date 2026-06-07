@@ -258,6 +258,40 @@ function Portal() {
   );
 }
 
+/**
+ * Bot de Pythia en la confirmación: reproduce el video en loop (mismo tamaño
+ * que tenía la imagen). Si el video no existe o falla, cae a la imagen estática.
+ * Coloca tu video en supply-harmony/public/pythia-confirm.mp4
+ */
+function PythiaConfirmMedia() {
+  const [videoFailed, setVideoFailed] = useState(false);
+  if (videoFailed) {
+    return (
+      <img
+        src={pythiaBot}
+        alt="Pythia Bot"
+        width={96}
+        height={96}
+        loading="lazy"
+        className="h-24 w-24 drop-shadow animate-float-slow"
+      />
+    );
+  }
+  return (
+    <video
+      src="/pythia-confirm.mp4"
+      width={96}
+      height={96}
+      autoPlay
+      loop
+      muted
+      playsInline
+      onError={() => setVideoFailed(true)}
+      className="h-24 w-24 object-contain drop-shadow"
+    />
+  );
+}
+
 function Confirmation({
   decision,
   realName,
@@ -276,7 +310,7 @@ function Confirmation({
   const Icon = item.icon;
   return (
     <div className="mt-8 flex flex-1 flex-col items-center justify-center text-center">
-      <img src={pythiaBot} alt="Pythia Bot" width={96} height={96} loading="lazy" className="h-24 w-24 drop-shadow animate-float-slow" />
+      <PythiaConfirmMedia />
       <span className={cn("mt-4 grid h-16 w-16 place-items-center rounded-3xl", item.color)}>
         <Icon className="h-8 w-8" />
       </span>
