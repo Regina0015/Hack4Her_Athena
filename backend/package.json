@@ -1,0 +1,32 @@
+{
+  "name": "hack4her-backend",
+  "version": "1.0.0",
+  "description": "Backend de Plataforma de Sustituciones Inteligentes - Arca Continental",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "import": "tsx src/scripts/import-csv.ts",
+    "seed:stock": "tsx src/scripts/seed-stock.ts",
+    "smoke": "tsx src/scripts/smoke-test.ts"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "mongoose": "^8.8.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.9.0",
+    "mongodb-memory-server": "^11.2.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}
