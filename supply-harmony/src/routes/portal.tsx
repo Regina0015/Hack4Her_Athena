@@ -21,7 +21,7 @@ function Portal() {
   const [decision, setDecision] = useState<Decision>(null);
 
   // Cliente activo: lo derivamos del primer customerId real con pedidos.
-  const ordersQ = useQuery({ queryKey: ["orders"], queryFn: () => api.orders() });
+  const ordersQ = useQuery({ queryKey: ["orders", 100], queryFn: () => api.orders({ limit: 100 }) });
   const customerIds = [...new Set((ordersQ.data ?? []).map((o) => o.customerId))].slice(0, 15);
   const [customerId, setCustomerId] = useState<string | null>(null);
   useEffect(() => {

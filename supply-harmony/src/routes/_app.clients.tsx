@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Heart, TrendingUp, Tag } from "lucide-react";
-import { api, pct, type CustomerProfile } from "@/lib/api/client";
+import { Heart, TrendingUp, Tag, Package } from "lucide-react";
+import { api, pct, emojiForProduct, type CustomerProfile } from "@/lib/api/client";
 import { DonutRing, Sparkline } from "@/components/platform/charts";
 import { cn } from "@/lib/utils";
 import pythiaAvatar from "@/assets/pythia-avatar.png";
@@ -29,7 +29,9 @@ function buildPreferences(p: CustomerProfile): string[] {
 /** Insights legibles derivados de las métricas reales. */
 function buildInsights(p: CustomerProfile): string[] {
   const out: string[] = [];
-  out.push(`Ha realizado ${p.totalPedidos} pedido(s) registrados.`);
+  out.push(
+    `Ha solicitado ${p.totalLineas} producto(s) (${p.totalUnidades.toLocaleString("es-MX")} unidades) en ${p.totalPedidos} pedido(s).`,
+  );
   if (p.totalSustituciones > 0) {
     out.push(
       `Acepta ${pct(p.tasaAceptacionGlobal)}% de las sustituciones sugeridas (${p.totalSustituciones} en total).`,
@@ -45,7 +47,7 @@ function buildInsights(p: CustomerProfile): string[] {
 
 function Clients() {
   // La lista de clientes se deriva de los customerIds reales de los pedidos.
-  const ordersQ = useQuery({ queryKey: ["orders"], queryFn: () => api.orders() });
+  const ordersQ = useQuery({ queryKey: ["orders", 100], queryFn: () => api.orders({ limit: 100 }) });
   const customerIds = [...new Set((ordersQ.data ?? []).map((o) => o.customerId))].slice(0, 15);
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -131,18 +133,22 @@ function Clients() {
                     <TrendingUp className="h-4 w-4 text-primary" /> Resumen del cliente
                   </div>
                   <Sparkline data={history} height={90} />
-                  <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                  <div className="mt-3 grid grid-cols-4 gap-2 text-center">
                     <div>
                       <p className="text-xl font-extrabold text-foreground">{profile.totalPedidos}</p>
                       <p className="text-[11px] text-muted-foreground">Pedidos</p>
                     </div>
                     <div>
-                      <p className="text-xl font-extrabold text-foreground">{profile.totalSustituciones}</p>
-                      <p className="text-[11px] text-muted-foreground">Sustituciones</p>
+                      <p className="text-xl font-extrabold text-foreground">{profile.totalLineas}</p>
+                      <p className="text-[11px] text-muted-foreground">Productos</p>
                     </div>
                     <div>
-                      <p className="text-xl font-extrabold text-foreground">{score}%</p>
-                      <p className="text-[11px] text-muted-foreground">Aceptación</p>
+                      <p className="text-xl font-extrabold text-foreground">{profile.totalUnidades.toLocaleString("es-MX")}</p>
+                      <p className="text-[11px] text-muted-foreground">Unidades</p>
+                    </div>
+                    <div>
+                      <p className="text-xl font-extrabold text-foreground">{profile.totalSustituciones}</p>
+                      <p className="text-[11px] text-muted-foreground">Sustituciones</p>
                     </div>
                   </div>
                 </div>
@@ -160,6 +166,45 @@ function Clients() {
                     </span>
                   ))}
                 </div>
+              </div>
+
+              {/* Productos más solicitados (datos reales del historial) */}
+              <div className="rounded-3xl border border-border bg-card p-6 shadow-soft">
+                <div className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Package className="h-4 w-4 text-primary" /> Productos más solicitados
+                </div>
+                {profile.productosMasSolicitados.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Sin productos registrados todavía.</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {(() => {
+                      const max = Math.max(...profile.productosMasSolicitados.map((p) => p.conteo), 1);
+                      return profile.productosMasSolicitados.map((p) => (
+                        <div key={p.sku} className="flex items-center gap-3">
+                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-brand-soft text-lg">
+                            {emojiForProduct(p.nombre)}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="truncate text-sm font-semibold text-foreground">
+                                {p.nombre || `SKU ${p.sku.slice(0, 6)}`}
+                              </p>
+                              <span className="shrink-0 text-sm font-bold text-primary">
+                                {p.conteo.toLocaleString("es-MX")} u
+                              </span>
+                            </div>
+                            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                              <div
+                                className="h-full rounded-full bg-gradient-brand"
+                                style={{ width: `${(p.conteo / max) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* Insights de Pythia */}

@@ -11,6 +11,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Toaster } from "@/components/ui/sonner";
 
 const STORAGE_KEY = "pythia-theme";
 type Theme = "light" | "dark";
@@ -149,6 +150,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <Toaster position="top-right" richColors />
     </QueryClientProvider>
   );
 }

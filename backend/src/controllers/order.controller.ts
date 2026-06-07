@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import {
   listOrders,
+  getOrderStats,
   getOrderDetail,
   approveSubstitution,
   rejectSubstitution,
@@ -14,6 +15,11 @@ export async function listOrdersHandler(req: Request, res: Response) {
   const risk = typeof req.query.risk === 'string' ? req.query.risk : undefined;
   const { orders, meta } = await listOrders(page, limit, risk);
   res.json({ data: orders, meta });
+}
+
+export async function getOrderStatsHandler(_req: Request, res: Response) {
+  const data = await getOrderStats();
+  res.json({ data });
 }
 
 export async function getOrderHandler(req: Request, res: Response) {

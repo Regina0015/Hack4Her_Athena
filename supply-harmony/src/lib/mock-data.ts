@@ -27,19 +27,27 @@ export interface DistributionCenter {
   id: string;
   name: string;
   city: string;
-  x: number;
-  y: number;
+  lat: number;
+  lng: number;
   status: Risk;
   ordersAtRisk: number;
 }
 
+// Centros de distribución reales del área metropolitana de Monterrey (lat/lng reales).
 export const centers: DistributionCenter[] = [
-  { id: "mty", name: "CEDIS Monterrey", city: "Nuevo León", x: 46, y: 34, status: "alto", ordersAtRisk: 12 },
-  { id: "gdl", name: "CEDIS Guadalajara", city: "Jalisco", x: 34, y: 58, status: "medio", ordersAtRisk: 5 },
-  { id: "cdmx", name: "CEDIS CDMX", city: "Ciudad de México", x: 50, y: 70, status: "bajo", ordersAtRisk: 1 },
-  { id: "qro", name: "CEDIS Querétaro", city: "Querétaro", x: 47, y: 60, status: "bajo", ordersAtRisk: 0 },
-  { id: "tij", name: "CEDIS Tijuana", city: "Baja California", x: 12, y: 20, status: "medio", ordersAtRisk: 4 },
+  { id: "mty-centro", name: "CEDIS Monterrey Centro", city: "Monterrey", lat: 25.6866, lng: -100.3161, status: "alto", ordersAtRisk: 12 },
+  { id: "guadalupe", name: "CEDIS Guadalupe", city: "Guadalupe", lat: 25.6775, lng: -100.2597, status: "medio", ordersAtRisk: 5 },
+  { id: "apodaca", name: "CEDIS Apodaca", city: "Apodaca", lat: 25.7817, lng: -100.1886, status: "bajo", ordersAtRisk: 1 },
+  { id: "san-nicolas", name: "CEDIS San Nicolás", city: "San Nicolás de los Garza", lat: 25.7417, lng: -100.2828, status: "bajo", ordersAtRisk: 0 },
+  { id: "santa-catarina", name: "CEDIS Santa Catarina", city: "Santa Catarina", lat: 25.6733, lng: -100.4583, status: "medio", ordersAtRisk: 4 },
 ];
+
+// Centro y bounding box del mapa de Monterrey para el embed de OpenStreetMap.
+export const monterreyMap = {
+  center: { lat: 25.6866, lng: -100.3161 },
+  // bbox: [minLng, minLat, maxLng, maxLat] que cubre la zona metropolitana.
+  bbox: { minLng: -100.52, minLat: 25.58, maxLng: -100.13, maxLat: 25.83 },
+};
 
 export interface Alert {
   id: string;

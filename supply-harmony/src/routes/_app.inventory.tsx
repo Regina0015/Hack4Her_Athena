@@ -12,31 +12,38 @@ export const Route = createFileRoute("/_app/inventory")({
   component: Inventory,
 });
 
-/** Adapta un InventoryItem del backend al shape Product que usa la UI. */
-function toProduct(it: InventoryItem): Product {
-  const semanas = it.semanasRestantes ?? 0;
-  const daysLeft = Number((semanas * 7).toFixed(1));
-  const dailyConsumption = Math.max(1, Math.round(it.consumoPromedioSemanal / 7));
-  // Tendencia descendente derivada de las semanas de stock (visual).
-  const trend = Array.from({ length: 7 }, (_, i) => {
-    const base = Math.max(4, Math.min(60, Math.round(it.stockActual / Math.max(1, it.consumoPromedioSemanal) * 14)));
-    return Math.max(2, Math.round(base - (i * base) / 9));
-  });
+/** Combina el shape Product (UI) con los datos reales del InventoryItem. */
+type RealProduct = Product & {
+  unidades: number;
+  lineasPendientes: number;
+  lineasEntregadas: number;
+};
+
+/** Adapta un InventoryItem (datos reales de orders) al shape de la UI. */
+function toProduct(it: InventoryItem): RealProduct {
+  const totalLineas = it.lineasPendientes + it.lineasEntregadas;
+  // Tendencia visual = ritmo de entregas (proporción entregada por tramos).
+  const trend = Array.from({ length: 7 }, (_, i) =>
+    Math.max(2, Math.round((it.lineasEntregadas / Math.max(1, totalLineas)) * 60 * ((i + 3) / 9))),
+  );
   return {
     id: it.sku,
     name: it.nombre,
     size: it.categoria,
     emoji: emojiForProduct(it.nombre),
     risk: it.riesgoAgotamiento,
-    stock: it.stockActual,
-    daysLeft,
-    dailyConsumption,
+    stock: it.unidadesSolicitadas, // demanda real
+    daysLeft: 0,
+    dailyConsumption: it.consumoPromedioSemanal,
     trend,
+    unidades: it.unidadesSolicitadas,
+    lineasPendientes: it.lineasPendientes,
+    lineasEntregadas: it.lineasEntregadas,
   };
 }
 
 function Inventory() {
-  const [selected, setSelected] = useState<Product | null>(null);
+  const [selected, setSelected] = useState<RealProduct | null>(null);
   const inventoryQ = useQuery({ queryKey: ["inventory"], queryFn: api.inventory });
   const products = (inventoryQ.data ?? []).map(toProduct);
 
@@ -45,7 +52,7 @@ function Inventory() {
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold tracking-tight text-foreground lg:text-3xl">Inventario predictivo</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pythia proyecta el agotamiento de cada producto antes de que suceda.
+          Demanda real por producto (tabla orders) y su estado de entrega.
         </p>
       </div>
 
@@ -89,13 +96,13 @@ function Inventory() {
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
               <div>
-                <p className="text-xs text-muted-foreground">Stock</p>
-                <p className="text-sm font-bold text-foreground">{p.stock.toLocaleString()} u</p>
+                <p className="text-xs text-muted-foreground">Demanda total</p>
+                <p className="text-sm font-bold text-foreground">{p.unidades.toLocaleString()} u</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-muted-foreground">Días restantes</p>
-                <p className={cn("text-sm font-bold", p.daysLeft < 1 ? "text-primary" : "text-foreground")}>
-                  {p.daysLeft < 1 ? `${Math.round(p.daysLeft * 24)} h` : `${p.daysLeft} días`}
+                <p className="text-xs text-muted-foreground">Pendientes</p>
+                <p className={cn("text-sm font-bold", p.risk === "alto" ? "text-destructive" : "text-foreground")}>
+                  {p.lineasPendientes.toLocaleString()} líneas
                 </p>
               </div>
             </div>
@@ -123,27 +130,20 @@ function Inventory() {
 
             <div className="space-y-5 p-6">
               <div className="grid grid-cols-2 gap-3">
-                <Metric icon={<Gauge className="h-4 w-4" />} label="Stock actual" value={`${selected.stock.toLocaleString()} u`} />
-                <Metric icon={<CalendarClock className="h-4 w-4" />} label="Consumo diario" value={`${selected.dailyConsumption.toLocaleString()} u`} />
+                <Metric icon={<Gauge className="h-4 w-4" />} label="Demanda total" value={`${selected.unidades.toLocaleString()} u`} />
+                <Metric icon={<CalendarClock className="h-4 w-4" />} label="Demanda semanal" value={`${selected.dailyConsumption.toLocaleString()} u`} />
               </div>
 
               <div className="rounded-3xl border border-border bg-secondary/40 p-5">
                 <div className="mb-2 flex items-center gap-2 text-sm font-bold text-foreground">
-                  <Brain className="h-4 w-4 text-ai" /> Predicción de Pythia
+                  <Brain className="h-4 w-4 text-ai" /> Estado de entrega (real)
                 </div>
                 <Sparkline data={selected.trend} stroke="var(--color-primary)" fill="var(--color-primary)" height={56} />
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Al ritmo actual, el stock se agota en{" "}
-                  <strong className="text-foreground">
-                    {selected.daysLeft < 1 ? `${Math.round(selected.daysLeft * 24)} horas` : `${selected.daysLeft} días`}
-                  </strong>
-                  .
+                  De este producto, <strong className="text-foreground">{selected.lineasPendientes.toLocaleString()}</strong>{" "}
+                  línea(s) siguen pendientes y{" "}
+                  <strong className="text-foreground">{selected.lineasEntregadas.toLocaleString()}</strong> ya se entregaron.
                 </p>
-              </div>
-
-              <div>
-                <p className="mb-2 text-sm font-bold text-foreground">Consumo por día</p>
-                <MiniBars data={selected.trend} />
               </div>
 
               <div className="rounded-3xl bg-gradient-ai p-5 text-ai-foreground shadow-ai">
@@ -152,8 +152,8 @@ function Inventory() {
                 </div>
                 <p className="text-sm leading-relaxed text-ai-foreground/90">
                   {selected.risk === "alto"
-                    ? "Adelanta el reabasto y prepara Sprite 600 ml como sustituto para los pedidos en riesgo (92% de aceptación)."
-                    : "Inventario estable. Mantén el plan de reabasto programado."}
+                    ? "Alta proporción de líneas pendientes. Prioriza la entrega o prepara sustituciones para este producto."
+                    : "La mayoría de las líneas de este producto ya fueron entregadas. Operación estable."}
                 </p>
               </div>
             </div>

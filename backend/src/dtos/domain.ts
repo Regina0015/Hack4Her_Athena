@@ -18,6 +18,9 @@ export interface AffectedLine {
   nombreSkuSustituto?: string | null;
 }
 
+/** Estado operativo del pedido derivado del Status REAL de sus líneas. */
+export type OrderEstado = 'pendiente' | 'entregado' | 'rechazado';
+
 export interface OrderSummary {
   idPedido: string;
   customerId: string;
@@ -29,6 +32,12 @@ export interface OrderSummary {
   riskScore: number;
   riskBand: RiskBand;
   lineasEnRiesgo: number;
+  // Datos REALES de la base de datos (Status de cada línea):
+  estado: OrderEstado; // estado global del pedido
+  totalLineas: number; // total de líneas/productos del pedido
+  lineasRegistradas: number; // líneas en Status "Registrado" (pendientes)
+  lineasEntregadas: number; // líneas en Status "Entregado"
+  lineasRechazadas: number; // líneas en Status "Rechazado" o "Cancelado"
 }
 
 export interface OrderDetailResponse extends OrderSummary {
@@ -58,6 +67,13 @@ export interface DashboardKpis {
   productosCriticos: number;
   sustitucionesPendientes: number;
   tasaAceptacionGlobal: number; // 0..1
+  // KPIs basados en el Status REAL de las líneas (base de datos):
+  totalPedidos: number; // total de pedidos analizados
+  totalLineas: number; // total de productos/líneas
+  lineasPendientes: number; // líneas en "Registrado"
+  lineasEntregadas: number; // líneas "Entregado"
+  lineasRechazadas: number; // líneas "Rechazado"/"Cancelado"
+  totalSustituciones: number; // pedidos con sustitución real (StatusSustitucion)
 }
 
 export interface Alert {
@@ -78,11 +94,17 @@ export interface InventoryItem {
   riesgoAgotamiento: RiskBand;
   semanasRestantes: number | null;
   demandaPredichaSemanal: number;
+  // Datos REALES derivados de la tabla orders:
+  unidadesSolicitadas: number; // demanda real total (suma de Quantity)
+  lineasPendientes: number; // líneas con Status "Registrado"
+  lineasEntregadas: number; // líneas con Status "Entregado"
 }
 
 export interface CustomerProfile {
   customerId: string;
   totalPedidos: number;
+  totalLineas: number; // total de productos solicitados (suma de líneas de todos los pedidos)
+  totalUnidades: number; // suma de Quantity de todas las líneas
   tasaAceptacionGlobal: number;
   totalSustituciones: number;
   preferencias: {

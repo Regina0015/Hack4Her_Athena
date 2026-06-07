@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Sparkles, ArrowRight, X } from "lucide-react";
-import { orderStages } from "@/lib/mock-data";
+import { toast } from "sonner";
+import { Check, Sparkles, ArrowRight, X, AlertTriangle, Clock, PackageCheck, ChevronDown } from "lucide-react";
 import { api, pct, type OrderSummary, type Recommendation } from "@/lib/api/client";
 import { DonutRing } from "@/components/platform/charts";
 import { cn } from "@/lib/utils";
@@ -10,30 +11,92 @@ export const Route = createFileRoute("/_app/orders")({
   component: Orders,
 });
 
-/** Etapa del pipeline (0..4) derivada del nivel de riesgo del pedido. */
-function stageFromOrder(o: OrderSummary): number {
-  if (o.lineasEnRiesgo === 0) return 4; // sin riesgo → aprobado
-  if (o.riskBand === "alto") return 3; // sugerencia lista, esperando aprobación
-  if (o.riskBand === "medio") return 2;
-  return 1;
+type OrderState = "pendiente" | "entregado" | "rechazado";
+
+/** Estado REAL del pedido según el Status de sus líneas (viene de la base de datos). */
+function classifyOrder(o: OrderSummary): OrderState {
+  return o.estado;
 }
 
+const STATE_META: Record<
+  OrderState,
+  { label: string; hint: string; icon: typeof AlertTriangle; classes: string }
+> = {
+  pendiente: {
+    label: "Pedidos pendientes",
+    hint: "Aún sin ningún producto entregado",
+    icon: Clock,
+    classes: "bg-warning/12 text-warning",
+  },
+  entregado: {
+    label: "Pedidos entregados",
+    hint: "Con al menos un producto entregado (total o parcial)",
+    icon: PackageCheck,
+    classes: "bg-success/12 text-success",
+  },
+  rechazado: {
+    label: "Pedidos con rechazo",
+    hint: "Sin entregas y con productos rechazados",
+    icon: AlertTriangle,
+    classes: "bg-destructive/12 text-destructive",
+  },
+};
+
 function shortId(id: string): string {
-  // Los ids vienen como notación científica; mostramos un sufijo legible.
   return `#${id.replace(/[^0-9]/g, "").slice(-5) || id.slice(0, 6)}`;
 }
 
 function Orders() {
-  const ordersQ = useQuery({ queryKey: ["orders"], queryFn: () => api.orders() });
+  // Resumen superior: conteo por estado sobre TODA la colección (no solo la
+  // muestra visible), para que coincida con el universo real del dashboard.
+  const statsQ = useQuery({ queryKey: ["orders", "stats"], queryFn: api.orderStats });
+  // Lista de tarjetas: muestra paginada (100 pedidos) priorizando pendientes.
+  const ordersQ = useQuery({ queryKey: ["orders", 100], queryFn: () => api.orders({ limit: 100 }) });
   const list = ordersQ.data ?? [];
+
+  // Contadores por estado para el resumen superior (universo completo, backend).
+  const counts: Record<OrderState, number> = {
+    pendiente: statsQ.data?.pendiente ?? 0,
+    entregado: statsQ.data?.entregado ?? 0,
+    rechazado: statsQ.data?.rechazado ?? 0,
+  };
+
+  // Prioriza pendientes (los que requieren acción) primero en la lista.
+  const orderPriority: Record<OrderState, number> = { pendiente: 0, rechazado: 1, entregado: 2 };
+  const sorted = [...list].sort((a, b) => orderPriority[classifyOrder(a)] - orderPriority[classifyOrder(b)]);
 
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold tracking-tight text-foreground lg:text-3xl">Gestión de pedidos</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pipeline desde el pedido hasta la aprobación, con propensión de aceptación calculada por Pythia.
+          Conteo por <strong>pedido</strong> (no por producto): cada pedido se cuenta una vez según el estado de sus líneas.
+          {statsQ.data ? ` Total: ${statsQ.data.total.toLocaleString("es-MX")} pedidos.` : ""}
         </p>
+      </div>
+
+      {/* Resumen por estado */}
+      <div className="mb-6 grid grid-cols-3 gap-4">
+        {(["pendiente", "entregado", "rechazado"] as OrderState[]).map((s) => {
+          const meta = STATE_META[s];
+          const Icon = meta.icon;
+          return (
+            <div key={s} className="rounded-3xl border border-border bg-card p-4 shadow-soft">
+              <div className="flex items-center gap-3">
+                <span className={cn("grid h-10 w-10 place-items-center rounded-2xl", meta.classes)}>
+                  <Icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-2xl font-extrabold leading-none text-foreground">
+                    {statsQ.isLoading ? "…" : counts[s].toLocaleString("es-MX")}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-muted-foreground">{meta.label}</p>
+                  <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground/70">{meta.hint}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {ordersQ.isLoading && (
@@ -46,22 +109,43 @@ function Orders() {
           No se pudo cargar pedidos. ¿Está corriendo el backend en :4000?
         </div>
       )}
+      {!ordersQ.isLoading && !ordersQ.isError && list.length === 0 && (
+        <div className="rounded-3xl border border-border bg-card p-8 text-center text-sm text-muted-foreground shadow-soft">
+          No hay pedidos para mostrar.
+        </div>
+      )}
 
-      <div className="space-y-5">
-        {list.slice(0, 12).map((o) => (
+      <div className="space-y-4">
+        {sorted.slice(0, 30).map((o) => (
           <OrderCard key={o.idPedido} order={o} />
         ))}
+        {sorted.length > 30 && (
+          <p className="pt-2 text-center text-xs text-muted-foreground">
+            Mostrando 30 de {sorted.length} pedidos · pendientes primero
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
 function OrderCard({ order }: { order: OrderSummary }) {
-  const stage = stageFromOrder(order);
-  const hasRisk = order.lineasEnRiesgo > 0;
+  const state = classifyOrder(order);
+  const meta = STATE_META[state];
+  const StateIcon = meta.icon;
+  // Pythia sugiere sustituciones para pedidos pendientes (productos por entregar).
+  const necesitaAccion = state === "pendiente" && order.lineasRegistradas > 0;
+
+  // El panel de sugerencia se carga solo cuando el usuario lo abre.
+  const [showSuggestion, setShowSuggestion] = useState(false);
 
   return (
-    <div className="rounded-3xl border border-border bg-card p-5 shadow-soft lg:p-6">
+    <div
+      className={cn(
+        "rounded-3xl border bg-card p-5 shadow-soft lg:p-6",
+        state === "rechazado" ? "border-destructive/30" : "border-border",
+      )}
+    >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-foreground">
@@ -69,51 +153,31 @@ function OrderCard({ order }: { order: OrderSummary }) {
             <span className="font-medium text-muted-foreground">· Cliente {shortId(order.customerId)}</span>
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Total ${order.total.toLocaleString("es-MX", { maximumFractionDigits: 2 })}
+            Total ${order.total.toLocaleString("es-MX", { maximumFractionDigits: 2 })} · {order.totalLineas} productos
+            {order.lineasRegistradas > 0 && ` · ${order.lineasRegistradas} pendiente(s)`}
+            {order.lineasEntregadas > 0 && ` · ${order.lineasEntregadas} entregado(s)`}
           </p>
         </div>
-        {!hasRisk ? (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success/12 px-3 py-1 text-xs font-bold text-success">
-            <Check className="h-3.5 w-3.5" /> Sin riesgo
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-ai-soft px-3 py-1 text-xs font-bold text-ai">
-            <Sparkles className="h-3.5 w-3.5" /> {order.lineasEnRiesgo} línea(s) en riesgo {order.riskBand}
-          </span>
-        )}
+        <span className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold", meta.classes)}>
+          <StateIcon className="h-3.5 w-3.5" /> {meta.label}
+        </span>
       </div>
 
-      {/* Timeline */}
-      <div className="mt-6 flex items-center">
-        {orderStages.map((s, i) => {
-          const done = i <= stage;
-          const current = i === stage && stage < 4;
-          return (
-            <div key={s} className="flex flex-1 items-center last:flex-none">
-              <div className="flex flex-col items-center gap-2">
-                <span
-                  className={cn(
-                    "grid h-9 w-9 place-items-center rounded-full text-xs font-bold transition-colors",
-                    done ? "bg-gradient-brand text-primary-foreground shadow-brand" : "bg-secondary text-muted-foreground",
-                    current && "ring-4 ring-primary/20",
-                  )}
-                >
-                  {done && !current ? <Check className="h-4 w-4" /> : i + 1}
-                </span>
-                <span className={cn("text-[11px] font-semibold", done ? "text-foreground" : "text-muted-foreground")}>
-                  {s}
-                </span>
-              </div>
-              {i < orderStages.length - 1 && (
-                <div className={cn("mx-1 mb-5 h-1 flex-1 rounded-full", i < stage ? "bg-gradient-brand" : "bg-secondary")} />
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {/* Botón de sugerencia de Pythia (para pedidos pendientes) */}
+      {necesitaAccion && (
+        <div className="mt-5">
+          <button
+            onClick={() => setShowSuggestion((v) => !v)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-gradient-ai px-4 py-2.5 text-sm font-bold text-ai-foreground shadow-ai transition-transform active:scale-[0.98]"
+          >
+            <Sparkles className="h-4 w-4" />
+            {showSuggestion ? "Ocultar sugerencia" : "Ver sugerencia de Pythia"}
+            <ChevronDown className={cn("h-4 w-4 transition-transform", showSuggestion && "rotate-180")} />
+          </button>
 
-      {/* Sustitución (carga la recomendación real solo si hay riesgo) */}
-      {hasRisk && <SubstitutionPanel idPedido={order.idPedido} />}
+          {showSuggestion && <SubstitutionPanel idPedido={order.idPedido} />}
+        </div>
+      )}
     </div>
   );
 }
@@ -125,32 +189,49 @@ function SubstitutionPanel({ idPedido }: { idPedido: string }) {
     queryFn: () => api.recommendations(idPedido),
   });
 
-  const rec: Recommendation | undefined = recQ.data?.[0];
+  // Primera recomendación con un sustituto real sugerido.
+  const rec: Recommendation | undefined =
+    recQ.data?.find((r) => r.skuRecomendado) ?? recQ.data?.[0];
 
   const approve = useMutation({
     mutationFn: () =>
       api.approve(idPedido, rec!.idLinea, rec!.skuRecomendado, rec!.nombreRecomendado),
     onSuccess: () => {
+      toast.success("Sustitución aprobada", {
+        description: rec ? `${rec.nombreSolicitado} → ${rec.nombreRecomendado}` : undefined,
+      });
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["recommendations", idPedido] });
     },
+    onError: (e: Error) => toast.error("No se pudo aprobar", { description: e.message }),
   });
   const reject = useMutation({
     mutationFn: () => api.reject(idPedido, rec!.idLinea),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["recommendations", idPedido] }),
+    onSuccess: () => {
+      toast.success("Sustitución rechazada");
+      qc.invalidateQueries({ queryKey: ["recommendations", idPedido] });
+    },
+    onError: (e: Error) => toast.error("No se pudo rechazar", { description: e.message }),
   });
 
   if (recQ.isLoading) {
     return (
-      <div className="mt-6 rounded-2xl bg-secondary/50 p-4 text-sm text-muted-foreground">
+      <div className="mt-4 rounded-2xl bg-secondary/50 p-4 text-sm text-muted-foreground">
         Pythia está calculando la mejor sustitución…
       </div>
     );
   }
-  if (!rec) {
+  if (recQ.isError) {
     return (
-      <div className="mt-6 rounded-2xl bg-secondary/50 p-4 text-sm text-muted-foreground">
-        Sin sustitución sugerida para este pedido.
+      <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+        No se pudo obtener la sugerencia de Pythia.
+      </div>
+    );
+  }
+  if (!rec || !rec.skuRecomendado) {
+    return (
+      <div className="mt-4 rounded-2xl bg-secondary/50 p-4 text-sm text-muted-foreground">
+        Pythia aún no tiene un sustituto histórico para este pedido.
       </div>
     );
   }
@@ -158,8 +239,8 @@ function SubstitutionPanel({ idPedido }: { idPedido: string }) {
   const acceptance = pct(rec.probabilidadAceptacion);
 
   return (
-    <div className="mt-6 space-y-4">
-      <div className="grid items-center gap-4 rounded-2xl bg-secondary/50 p-4 sm:grid-cols-[1fr_auto_1fr_auto]">
+    <div className="mt-4 space-y-4 rounded-2xl border border-ai/20 bg-ai-soft/40 p-4">
+      <div className="grid items-center gap-4 sm:grid-cols-[1fr_auto_1fr_auto]">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Solicitado</p>
           <p className="mt-0.5 text-sm font-bold text-foreground">{rec.nombreSolicitado}</p>
@@ -178,9 +259,7 @@ function SubstitutionPanel({ idPedido }: { idPedido: string }) {
         </div>
       </div>
 
-      {rec.explicacion && (
-        <p className="px-1 text-xs text-muted-foreground">{rec.explicacion}</p>
-      )}
+      {rec.explicacion && <p className="px-1 text-xs text-muted-foreground">{rec.explicacion}</p>}
 
       <div className="flex flex-wrap gap-3">
         <button
@@ -189,7 +268,7 @@ function SubstitutionPanel({ idPedido }: { idPedido: string }) {
           className="inline-flex items-center gap-2 rounded-2xl bg-gradient-brand px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-brand transition-transform active:scale-[0.98] disabled:opacity-60"
         >
           <Check className="h-4 w-4" />
-          {approve.isSuccess ? "Sustitución aprobada" : "Aprobar sustitución"}
+          {approve.isSuccess ? "Sustitución aprobada" : "Aprobar sugerencia"}
         </button>
         <button
           onClick={() => reject.mutate()}

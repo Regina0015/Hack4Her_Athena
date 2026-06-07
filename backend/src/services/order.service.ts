@@ -1,6 +1,6 @@
 import { orderRepository } from '../repositories/order.repository.js';
-import { productRepository } from '../repositories/product.repository.js';
-import { calculateLineRisk, bandFromScore } from './risk.service.js';
+import { bandFromScore } from './risk.service.js';
+import { getOrderStatusCounts } from './stats.service.js';
 import { AppError } from '../middlewares/AppError.js';
 import type { OrderSummary, OrderDetailResponse, AffectedLine } from '../dtos/domain.js';
 
@@ -9,41 +9,79 @@ function toStr(v: unknown): string {
   return String(v);
 }
 
-async function computeOrderRisk(order: Record<string, unknown>) {
+/**
+ * Calcula el resumen de un pedido usando SOLO el Status real de sus líneas
+ * (dato de la tabla orders). Una línea "en riesgo" = sigue en "Registrado"
+ * (pendiente de entregar). No hay stock simulado.
+ */
+function computeOrderRisk(order: Record<string, unknown>) {
   const lineas = (order.ProductosSolicitados as any[]) ?? [];
-  const skus = lineas.map((l) => toStr(l.sku_solicitado)).filter(Boolean);
-  const productos = skus.length ? await productRepository.findBySkus(skus) : [];
-  const productMap = new Map(productos.map((p) => [p.sku, p]));
 
   const affected: AffectedLine[] = lineas.map((l, idx) => {
     const sku = toStr(l.sku_solicitado);
-    const prod = productMap.get(sku);
-    const riskScore = calculateLineRisk({
-      stockActual: prod?.stockActual ?? 50,
-      stockMinimo: prod?.stockMinimo ?? 30,
-      quantitySolicitada: l.Quantity ?? 1,
-      vecesSustituido: 0,
-    });
+    const st = toStr(l.Status).toLowerCase();
+    const pendiente = st !== 'entregado' && st !== 'rechazado' && st !== 'cancelado';
     return {
       idLinea: toStr(l.id_linea) || String(idx),
       skuSolicitado: sku,
       nombreSku: l.nombre_sku_solicitado ?? '',
       quantity: l.Quantity ?? 0,
-      stockActual: prod?.stockActual ?? 50,
-      riskScore,
-      riskBand: bandFromScore(riskScore),
+      stockActual: 0,
+      riskScore: pendiente ? 100 : 0,
+      riskBand: pendiente ? ('alto' as const) : ('bajo' as const),
       substitutionStatus: 'none' as const,
       skuSustituto: null,
       nombreSkuSustituto: null,
     };
   });
 
-  const maxRisk = affected.reduce((m, a) => Math.max(m, a.riskScore), 0);
   const lineasEnRiesgo = affected.filter((a) => a.riskBand !== 'bajo').length;
-  return { affected, maxRisk, lineasEnRiesgo };
+  // Riesgo del pedido = proporción REAL de líneas aún pendientes.
+  const proporcion = affected.length > 0 ? lineasEnRiesgo / affected.length : 0;
+  const maxRisk = Math.round(proporcion * 100);
+
+  // Conteo del Status REAL de cada línea (dato de la base de datos).
+  let lineasRegistradas = 0;
+  let lineasEntregadas = 0;
+  let lineasRechazadas = 0;
+  for (const l of lineas) {
+    const st = toStr(l.Status).toLowerCase();
+    if (st === 'entregado') lineasEntregadas += 1;
+    else if (st === 'rechazado' || st === 'cancelado') lineasRechazadas += 1;
+    else lineasRegistradas += 1; // "Registrado" u otros → pendiente
+  }
+  const totalLineas = lineas.length;
+  // Estado global del pedido:
+  //  - entregado: ya se entregó al menos una línea (entregas totales o parciales)
+  //  - rechazado: nada entregado y predominan los rechazos
+  //  - pendiente: aún no se ha entregado nada
+  const estado: 'pendiente' | 'entregado' | 'rechazado' =
+    lineasEntregadas > 0 ? 'entregado' : lineasRechazadas > 0 ? 'rechazado' : 'pendiente';
+
+  return {
+    affected,
+    maxRisk,
+    lineasEnRiesgo,
+    estado,
+    totalLineas,
+    lineasRegistradas,
+    lineasEntregadas,
+    lineasRechazadas,
+  };
 }
 
-function toSummary(o: any, maxRisk: number, lineasEnRiesgo: number): OrderSummary {
+function toSummary(
+  o: any,
+  risk: {
+    maxRisk: number;
+    lineasEnRiesgo: number;
+    estado: 'pendiente' | 'entregado' | 'rechazado';
+    totalLineas: number;
+    lineasRegistradas: number;
+    lineasEntregadas: number;
+    lineasRechazadas: number;
+  },
+): OrderSummary {
   return {
     idPedido: toStr(o.id_pedido),
     customerId: toStr(o.customer_id),
@@ -52,9 +90,14 @@ function toSummary(o: any, maxRisk: number, lineasEnRiesgo: number): OrderSummar
     cedis: '',
     statusFinal: toStr(o.StatusSustitucion?.status ?? ''),
     total: o.Total ?? 0,
-    riskScore: maxRisk,
-    riskBand: bandFromScore(maxRisk),
-    lineasEnRiesgo,
+    riskScore: risk.maxRisk,
+    riskBand: bandFromScore(risk.maxRisk),
+    lineasEnRiesgo: risk.lineasEnRiesgo,
+    estado: risk.estado,
+    totalLineas: risk.totalLineas,
+    lineasRegistradas: risk.lineasRegistradas,
+    lineasEntregadas: risk.lineasEntregadas,
+    lineasRechazadas: risk.lineasRechazadas,
   };
 }
 
@@ -63,22 +106,31 @@ export async function listOrders(page = 1, limit = 25, riskFilter?: string) {
   const orders = await orderRepository.findAll({}, skip, limit);
   const total = await orderRepository.count();
 
-  const summaries: OrderSummary[] = [];
-  for (const o of orders) {
-    const { maxRisk, lineasEnRiesgo } = await computeOrderRisk(o as any);
-    summaries.push(toSummary(o, maxRisk, lineasEnRiesgo));
-  }
+  const summaries: OrderSummary[] = orders.map((o) => {
+    const risk = computeOrderRisk(o as any);
+    return toSummary(o, risk);
+  });
 
   const filtered = riskFilter ? summaries.filter((s) => s.riskBand === riskFilter) : summaries;
   return { orders: filtered, meta: { page, limit, total } };
+}
+
+/**
+ * Conteo de pedidos por estado sobre TODA la colección (no solo la página
+ * visible). Usa la misma regla de clasificación que listOrders, por lo que el
+ * resumen de "Gestión de pedidos" refleja el universo completo y es coherente
+ * con el dashboard.
+ */
+export async function getOrderStats() {
+  return getOrderStatusCounts();
 }
 
 export async function getOrderDetail(id_pedido: string): Promise<OrderDetailResponse> {
   const order = await orderRepository.findById(id_pedido);
   if (!order) throw AppError.notFound('Pedido no encontrado');
 
-  const { affected, maxRisk, lineasEnRiesgo } = await computeOrderRisk(order as any);
-  return { ...toSummary(order, maxRisk, lineasEnRiesgo), lineas: affected };
+  const risk = computeOrderRisk(order as any);
+  return { ...toSummary(order, risk), lineas: risk.affected };
 }
 
 export async function approveSubstitution(

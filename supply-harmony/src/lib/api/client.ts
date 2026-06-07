@@ -49,6 +49,13 @@ export interface DashboardKpis {
   productosCriticos: number;
   sustitucionesPendientes: number;
   tasaAceptacionGlobal: number; // 0..1
+  // KPIs reales basados en el Status de las líneas:
+  totalPedidos: number;
+  totalLineas: number;
+  lineasPendientes: number;
+  lineasEntregadas: number;
+  lineasRechazadas: number;
+  totalSustituciones: number;
 }
 
 export interface Alert {
@@ -72,6 +79,8 @@ export interface AffectedLine {
   nombreSkuSustituto?: string | null;
 }
 
+export type OrderEstado = "pendiente" | "entregado" | "rechazado";
+
 export interface OrderSummary {
   idPedido: string;
   customerId: string;
@@ -83,10 +92,24 @@ export interface OrderSummary {
   riskScore: number;
   riskBand: RiskBand;
   lineasEnRiesgo: number;
+  // Datos reales del Status de las líneas:
+  estado: OrderEstado;
+  totalLineas: number;
+  lineasRegistradas: number;
+  lineasEntregadas: number;
+  lineasRechazadas: number;
 }
 
 export interface OrderDetail extends OrderSummary {
   lineas: AffectedLine[];
+}
+
+/** Conteo de pedidos por estado sobre TODA la colección (no solo la página). */
+export interface OrderStats {
+  total: number;
+  pendiente: number;
+  entregado: number;
+  rechazado: number;
 }
 
 export interface RecommendationAlternative {
@@ -117,11 +140,16 @@ export interface InventoryItem {
   riesgoAgotamiento: RiskBand;
   semanasRestantes: number | null;
   demandaPredichaSemanal: number;
+  unidadesSolicitadas: number;
+  lineasPendientes: number;
+  lineasEntregadas: number;
 }
 
 export interface CustomerProfile {
   customerId: string;
   totalPedidos: number;
+  totalLineas: number;
+  totalUnidades: number;
   tasaAceptacionGlobal: number;
   totalSustituciones: number;
   preferencias: {
@@ -167,7 +195,14 @@ export const api = {
   dashboardAlerts: () => get<Alert[]>("/dashboard/alerts"),
 
   // Pedidos
-  orders: (risk?: RiskBand) => get<OrderSummary[]>(`/orders${risk ? `?risk=${risk}` : ""}`),
+  orders: (opts?: { risk?: RiskBand; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.risk) params.set("risk", opts.risk);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return get<OrderSummary[]>(`/orders${qs ? `?${qs}` : ""}`);
+  },
+  orderStats: () => get<OrderStats>("/orders/stats"),
   order: (idPedido: string) => get<OrderDetail>(`/orders/${idPedido}`),
   recommendations: (idPedido: string) =>
     get<Recommendation[]>(`/orders/${idPedido}/recommendations`),

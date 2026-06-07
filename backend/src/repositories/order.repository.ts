@@ -1,3 +1,4 @@
+import type { PipelineStage } from 'mongoose';
 import { Order } from '../models/Order.js';
 
 export const orderRepository = {
@@ -19,5 +20,10 @@ export const orderRepository = {
 
   distinctCustomers() {
     return Order.distinct('customer_id');
+  },
+
+  /** Agregación arbitraria sobre la colección de pedidos. */
+  aggregate(pipeline: PipelineStage[]) {
+    return Order.aggregate(pipeline).allowDiskUse(true);
   },
 };

@@ -1,57 +1,61 @@
-import { getCriticalInventory } from './inventory.service.js';
-import { listOrders } from './order.service.js';
-import { orderRepository } from '../repositories/order.repository.js';
 import type { DashboardKpis, Alert } from '../dtos/domain.js';
+import {
+  getLineStatusCounts,
+  getOrderCounts,
+  getTopProducts,
+  getRealSubstitutions,
+} from './stats.service.js';
 
+/**
+ * KPIs del dashboard — 100% derivados de la tabla `orders` (datos reales).
+ * No usa stock simulado: todo viene del Status real de las líneas y de
+ * StatusSustitucion (sustituciones reales).
+ */
 export async function getKpis(): Promise<DashboardKpis> {
-  const { orders } = await listOrders(1, 100);
-  const pedidosEnRiesgo = orders.filter((o) => o.riskBand !== 'bajo').length;
-
-  const criticos = await getCriticalInventory();
-  const productosCriticos = criticos.filter((c) => c.riesgoAgotamiento === 'alto').length;
-
-  // Cuenta líneas con Status "Pendiente" embebidas en los pedidos.
-  const allOrders = await orderRepository.findAll({}, 0, 200);
-  let sustitucionesPendientes = 0;
-  for (const o of allOrders as any[]) {
-    const lineas = o.ProductosSolicitados ?? [];
-    sustitucionesPendientes += lineas.filter(
-      (l: any) => l.Status === 'Pendiente' || l.Status === 'pendiente',
-    ).length;
-  }
+  const [status, counts] = await Promise.all([getLineStatusCounts(), getOrderCounts()]);
 
   return {
-    pedidosEnRiesgo,
-    productosCriticos,
-    sustitucionesPendientes,
+    // Métricas reales de la tabla orders:
+    totalPedidos: counts.totalPedidos,
+    totalLineas: status.total,
+    lineasPendientes: status.registrado,
+    lineasEntregadas: status.entregado,
+    lineasRechazadas: status.rechazado,
+    totalSustituciones: counts.totalSustituciones,
+    // Compatibilidad con campos previos (derivados de lo real):
+    pedidosEnRiesgo: counts.totalSustituciones, // pedidos que requirieron sustitución (real)
+    productosCriticos: status.rechazado, // líneas rechazadas (real)
+    sustitucionesPendientes: status.registrado, // líneas aún por entregar (real)
     tasaAceptacionGlobal: 0,
   };
 }
 
+/**
+ * Alertas inteligentes — basadas en sustituciones REALES de la tabla orders
+ * (StatusSustitucion: producto solicitado → producto entregado en su lugar).
+ */
 export async function getAlerts(): Promise<Alert[]> {
-  const alerts: Alert[] = [];
+  const subs = await getRealSubstitutions(10);
+  const alerts: Alert[] = subs.map((s, i) => ({
+    id: `sust-${s.idPedido}-${i}`,
+    tipo: 'pedido_alto_riesgo',
+    severidad: 'medio',
+    mensaje: s.nombreSolicitado
+      ? `Sustitución: ${s.nombreSolicitado} → ${s.nombreCambio || 'alternativa'}`
+      : `Pedido ${s.idPedido} con sustitución aplicada`,
+    referencia: s.idPedido,
+  }));
 
-  const criticos = await getCriticalInventory();
-  for (const c of criticos.slice(0, 10)) {
-    alerts.push({
-      id: `stock-${c.sku}`,
+  // Si no hubiera sustituciones, mostrar los productos más demandados como contexto real.
+  if (alerts.length === 0) {
+    const top = await getTopProducts(5);
+    return top.map((p, i) => ({
+      id: `top-${p.sku}-${i}`,
       tipo: 'stock_critico',
-      severidad: c.riesgoAgotamiento,
-      mensaje: `Stock crítico: ${c.nombre} (${c.stockActual} uds, mínimo ${c.stockMinimo}).`,
-      referencia: c.sku,
-    });
+      severidad: 'bajo',
+      mensaje: `Alta demanda: ${p.nombre} (${p.unidades.toLocaleString('es-MX')} unidades)`,
+      referencia: p.sku,
+    }));
   }
-
-  const { orders } = await listOrders(1, 50, 'alto');
-  for (const o of orders.slice(0, 10)) {
-    alerts.push({
-      id: `pedido-${o.idPedido}`,
-      tipo: 'pedido_alto_riesgo',
-      severidad: 'alto',
-      mensaje: `Pedido ${o.idPedido} con ${o.lineasEnRiesgo} línea(s) en riesgo alto.`,
-      referencia: o.idPedido,
-    });
-  }
-
   return alerts;
 }

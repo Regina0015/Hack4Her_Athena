@@ -17,6 +17,7 @@ router.get('/dashboard/alerts', asyncWrapper(dashboard.getAlertsHandler));
 
 // Pedidos
 router.get('/orders', asyncWrapper(orders.listOrdersHandler));
+router.get('/orders/stats', asyncWrapper(orders.getOrderStatsHandler));
 router.get('/orders/:idPedido', asyncWrapper(orders.getOrderHandler));
 router.get('/orders/:idPedido/recommendations', asyncWrapper(orders.getRecommendationsHandler));
 router.post(
