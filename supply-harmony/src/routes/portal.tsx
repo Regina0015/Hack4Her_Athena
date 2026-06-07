@@ -166,14 +166,12 @@ function Portal() {
                 <div className="mt-4 rounded-3xl border border-border bg-card p-5 shadow-soft">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-2xl bg-secondary/60 p-4 text-center">
-                      <span className="text-3xl">🥤</span>
-                      <p className="mt-2 text-sm font-bold text-foreground">{realName}</p>
-                      <p className="text-xs font-semibold text-destructive">No disponible</p>
+                      <p className="text-sm font-bold text-foreground">{realName}</p>
+                      <p className="mt-1 text-xs font-semibold text-destructive">No disponible</p>
                     </div>
                     <div className="rounded-2xl bg-ai-soft p-4 text-center ring-2 ring-ai/30">
-                      <span className="text-3xl">🟢</span>
-                      <p className="mt-2 text-sm font-bold text-foreground">Sprite 600 ml</p>
-                      <p className="text-xs font-semibold text-ai">Sugerido por Pythia</p>
+                      <p className="text-sm font-bold text-foreground">Sprite 600 ml</p>
+                      <p className="mt-1 text-xs font-semibold text-ai">Sugerido por Pythia</p>
                     </div>
                   </div>
 
