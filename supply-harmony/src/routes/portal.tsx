@@ -35,7 +35,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { api, type PortalProduct, type SurveyInput } from "@/lib/api/client";
+import { api, type PortalProduct, type SurveyInput, type ReabastoPrediccion } from "@/lib/api/client";
 import pythiaBot from "@/assets/pythia-bot.png";
 import pythiaAvatar from "@/assets/pythia-avatar.png";
 
@@ -351,6 +351,11 @@ function InventoryPanel({ customerId }: { customerId: string | null }) {
     queryFn: () => api.portalInventory(customerId!),
     enabled: !!customerId,
   });
+  const predictionQ = useQuery({
+    queryKey: ["portal", "prediction", customerId],
+    queryFn: () => api.customerPrediction(customerId!),
+    enabled: !!customerId,
+  });
 
   if (invQ.isLoading) return <PanelLoading text="Analizando tu inventario…" />;
   if (invQ.isError || !invQ.data)
@@ -368,7 +373,7 @@ function InventoryPanel({ customerId }: { customerId: string | null }) {
           <p className="text-sm font-bold text-foreground">Inventario actual</p>
         </div>
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-          <Stat label="SKUs" value={fmt(inv.totalSkus)} />
+          <Stat label="Productos" value={fmt(inv.totalSkus)} />
           <Stat label="Unidades" value={fmt(inv.totalUnidades)} />
           <Stat label="Por agotarse" value={fmt(inv.porAgotarse)} tone="warning" />
         </div>
@@ -376,16 +381,83 @@ function InventoryPanel({ customerId }: { customerId: string | null }) {
 
       <ProductList title="Mayor rotación" icon={TrendingUp} items={inv.mayorRotacion} unitLabel="uds. solicitadas" tone="success" />
       <ProductList title="Menor rotación" icon={TrendingDown} items={inv.menorRotacion} unitLabel="uds. solicitadas" tone="muted" />
-      <ProductList title="Próximos a agotarse" icon={AlertTriangle} items={inv.proximosAgotarse} unitLabel="pendientes" tone="warning" valueKey="pendientes" />
 
-      <div className="rounded-3xl border border-border bg-card p-5 shadow-soft">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-ai" />
-          <p className="text-sm font-bold text-foreground">Tendencia de demanda</p>
+      {/* Predicción de reabasto — Pythia te anticipa qué se te va a acabar */}
+      <PredictionPanel
+        productos={predictionQ.data?.productos ?? []}
+        resumen={predictionQ.data?.resumen}
+        isLoading={predictionQ.isLoading}
+      />
+    </div>
+  );
+}
+
+/** Predicción de reabasto en el Portal: Pythia avisa al cliente qué reponer. */
+function PredictionPanel({
+  productos,
+  resumen,
+  isLoading,
+}: {
+  productos: ReabastoPrediccion[];
+  resumen?: { productosUrgentes: number; proximoReabastoSemanas: number | null };
+  isLoading: boolean;
+}) {
+  const URG: Record<string, { label: string; classes: string }> = {
+    alto: { label: "Reponer ya", classes: "bg-destructive/12 text-destructive" },
+    medio: { label: "Pronto", classes: "bg-warning/12 text-warning" },
+    bajo: { label: "Tranquilo", classes: "bg-success/12 text-success" },
+  };
+
+  return (
+    <div className="overflow-hidden rounded-3xl bg-gradient-ai p-5 text-ai-foreground shadow-ai">
+      <div className="flex items-start gap-3">
+        <img src={pythiaBot} alt="" width={40} height={40} className="h-10 w-10 shrink-0 drop-shadow" />
+        <div>
+          <p className="text-sm font-bold">Pythia anticipa tu reabasto</p>
+          <p className="mt-1 text-sm text-ai-foreground/95">
+            Según lo que vendes, esto es lo que pronto necesitarás reponer.
+          </p>
         </div>
-        <Sparkline points={inv.tendencia} />
-        <p className="mt-2 text-xs text-muted-foreground">Demanda reciente derivada de tus pedidos.</p>
       </div>
+
+      {isLoading && <p className="mt-4 text-sm text-ai-foreground/90">Calculando tu predicción…</p>}
+
+      {!isLoading && productos.length === 0 && (
+        <p className="mt-4 rounded-2xl bg-white/12 p-3.5 text-sm text-ai-foreground/95">
+          Por ahora no hay productos por reponer. ¡Tu inventario está al día!
+        </p>
+      )}
+
+      {!isLoading && productos.length > 0 && (
+        <div className="mt-4 space-y-2.5">
+          {resumen && resumen.proximoReabastoSemanas !== null && (
+            <p className="rounded-2xl bg-white/12 px-3.5 py-2.5 text-sm">
+              Tu próximo reabasto sería en{" "}
+              <strong>~{resumen.proximoReabastoSemanas} semana(s)</strong>
+              {resumen.productosUrgentes > 0 && (
+                <> · <strong>{resumen.productosUrgentes}</strong> urgente(s)</>
+              )}
+            </p>
+          )}
+
+          {productos.slice(0, 5).map((p) => {
+            const urg = URG[p.urgencia] ?? URG.bajo;
+            return (
+              <div key={p.sku} className="flex items-center gap-3 rounded-2xl bg-white/12 p-3.5 backdrop-blur">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{p.nombre}</p>
+                  <p className="mt-0.5 text-xs text-ai-foreground/85">
+                    Vendes ~{p.consumoSemanal}/sem · te quedan ~{p.semanasParaReabasto} semana(s)
+                  </p>
+                </div>
+                <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs font-bold", urg.classes)}>
+                  {urg.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -432,17 +504,6 @@ function ProductList({
           </li>
         ))}
       </ul>
-    </div>
-  );
-}
-
-function Sparkline({ points }: { points: number[] }) {
-  const max = Math.max(...points, 1);
-  return (
-    <div className="mt-3 flex h-20 items-end gap-1.5">
-      {points.map((v, i) => (
-        <div key={i} className="flex-1 rounded-t-md bg-gradient-brand" style={{ height: `${(v / max) * 100}%` }} aria-hidden />
-      ))}
     </div>
   );
 }

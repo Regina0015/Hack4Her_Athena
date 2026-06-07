@@ -145,6 +145,23 @@ export interface InventoryItem {
   lineasEntregadas: number;
 }
 
+/** Predicción de reabasto de un producto para un cliente (Pythia anticipa). */
+export interface ReabastoPrediccion {
+  sku: string;
+  nombre: string;
+  consumoSemanal: number;
+  unidadesPendientes: number;
+  semanasParaReabasto: number;
+  urgencia: RiskBand;
+  confianza: number; // 0..1
+}
+
+export interface CustomerPrediction {
+  customerId: string;
+  productos: ReabastoPrediccion[];
+  resumen: { productosUrgentes: number; proximoReabastoSemanas: number | null };
+}
+
 export interface CustomerProfile {
   customerId: string;
   totalPedidos: number;
@@ -255,6 +272,8 @@ export const api = {
   // Clientes
   customerProfile: (customerId: string) =>
     get<CustomerProfile>(`/customers/${encodeURIComponent(customerId)}/profile`),
+  customerPrediction: (customerId: string) =>
+    get<CustomerPrediction>(`/customers/${encodeURIComponent(customerId)}/prediction`),
 
   // Inventario
   inventory: () => get<InventoryItem[]>("/inventory"),

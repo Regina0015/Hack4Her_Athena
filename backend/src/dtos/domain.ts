@@ -100,6 +100,23 @@ export interface InventoryItem {
   lineasEntregadas: number; // líneas con Status "Entregado"
 }
 
+/** Predicción de reabasto de un producto para un cliente (Pythia anticipa). */
+export interface ReabastoPrediccion {
+  sku: string;
+  nombre: string;
+  consumoSemanal: number; // unidades/semana estimadas (histórico real / 12)
+  unidadesPendientes: number; // lo aún no surtido
+  semanasParaReabasto: number; // cuántas semanas cubre lo pendiente
+  urgencia: RiskBand; // alto | medio | bajo
+  confianza: number; // 0..1 — cuánta evidencia respalda la estimación
+}
+
+export interface CustomerPrediction {
+  customerId: string;
+  productos: ReabastoPrediccion[];
+  resumen: { productosUrgentes: number; proximoReabastoSemanas: number | null };
+}
+
 export interface CustomerProfile {
   customerId: string;
   totalPedidos: number;

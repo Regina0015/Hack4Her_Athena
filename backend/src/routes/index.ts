@@ -31,6 +31,7 @@ router.post(
 
 // Clientes
 router.get('/customers/:customerId/profile', asyncWrapper(customers.getProfileHandler));
+router.get('/customers/:customerId/prediction', asyncWrapper(customers.getPredictionHandler));
 
 // Inventario
 router.get('/inventory', asyncWrapper(inventory.listInventoryHandler));

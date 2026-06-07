@@ -103,7 +103,7 @@ export interface PortalInventory {
 }
 
 /** Agrega los productos de un cliente a partir de sus pedidos reales. */
-async function aggregateCustomerProducts(customerId: string): Promise<PortalProduct[]> {
+export async function aggregateCustomerProducts(customerId: string): Promise<PortalProduct[]> {
   const orders = await orderRepository.findByCustomer(customerId);
   const map = new Map<string, PortalProduct>();
 

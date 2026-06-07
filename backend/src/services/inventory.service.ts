@@ -32,6 +32,8 @@ function buildItem(
 
   // Demanda semanal aproximada (histórico ~12 semanas) — base real.
   const consumoPromedioSemanal = Math.max(1, Math.round(p.unidades / 12));
+  // Semanas que cubre lo aún pendiente al ritmo de consumo (predicción de reabasto).
+  const semanasRestantes = Math.round((p.unidadesPendientes / consumoPromedioSemanal) * 10) / 10;
 
   return {
     sku: p.sku,
@@ -42,7 +44,7 @@ function buildItem(
     stockMinimo: 0,
     consumoPromedioSemanal,
     riesgoAgotamiento: riesgo,
-    semanasRestantes: null,
+    semanasRestantes,
     demandaPredichaSemanal: Math.round(consumoPromedioSemanal * 1.1),
     unidadesSolicitadas: p.unidades,
     lineasPendientes: p.lineasPendientes,

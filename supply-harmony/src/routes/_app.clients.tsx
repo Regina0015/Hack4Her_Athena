@@ -62,7 +62,6 @@ function Clients() {
     queryFn: () => api.customerProfile(activeId!),
     enabled: !!activeId,
   });
-
   const profile = profileQ.data;
   const score = profile ? pct(profile.tasaAceptacionGlobal) : 0;
   const preferences = profile ? buildPreferences(profile) : [];
