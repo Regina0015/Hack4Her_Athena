@@ -5,6 +5,7 @@
  */
 import { orderRepository } from '../repositories/order.repository.js';
 import { Order } from '../models/Order.js';
+import { nombreConPresentacion } from './presentation.js';
 
 function clean(nombre: unknown): string {
   return String(nombre ?? '')
@@ -114,6 +115,16 @@ export async function getTopProducts(limit = 40) {
         _id: '$ProductosSolicitados.sku_solicitado',
         nombre: { $first: '$ProductosSolicitados.nombre_sku_solicitado' },
         unidades: { $sum: { $ifNull: ['$ProductosSolicitados.Quantity', 0] } },
+        // Unidades aún por surtir (líneas Registrado) — base del riesgo por volumen.
+        unidadesPendientes: {
+          $sum: {
+            $cond: [
+              { $eq: ['$ProductosSolicitados.Status', 'Registrado'] },
+              { $ifNull: ['$ProductosSolicitados.Quantity', 0] },
+              0,
+            ],
+          },
+        },
         registradas: {
           $sum: { $cond: [{ $eq: ['$ProductosSolicitados.Status', 'Registrado'] }, 1, 0] },
         },
@@ -129,19 +140,27 @@ export async function getTopProducts(limit = 40) {
     _id: unknown;
     nombre: unknown;
     unidades: number;
+    unidadesPendientes: number;
     registradas: number;
     entregadas: number;
     veces: number;
   }[];
 
-  return rows.map((r) => ({
-    sku: String(r._id ?? ''),
-    nombre: clean(r.nombre) && clean(r.nombre) !== 'NaN' ? clean(r.nombre) : `SKU ${String(r._id).slice(0, 6)}`,
-    unidades: r.unidades,
-    lineasPendientes: r.registradas,
-    lineasEntregadas: r.entregadas,
-    veces: r.veces,
-  }));
+  return rows.map((r) => {
+    const sku = String(r._id ?? '');
+    const base = clean(r.nombre) && clean(r.nombre) !== 'NaN' ? clean(r.nombre) : `SKU ${sku.slice(0, 6)}`;
+    return {
+      sku,
+      // Añade presentación (ml + envase) derivada del SKU para diferenciar los
+      // muchos productos que comparten el mismo nombre truncado (p. ej. "Coca - Cola").
+      nombre: nombreConPresentacion(sku, base),
+      unidades: r.unidades,
+      unidadesPendientes: r.unidadesPendientes,
+      lineasPendientes: r.registradas,
+      lineasEntregadas: r.entregadas,
+      veces: r.veces,
+    };
+  });
 }
 
 /** Sustituciones reales más recientes (de StatusSustitucion). */

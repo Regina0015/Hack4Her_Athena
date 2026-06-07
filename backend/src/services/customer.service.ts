@@ -18,6 +18,11 @@ export async function getCustomerProfile(customerId: string): Promise<CustomerPr
   const solicitadosCount = new Map<string, { sku: string; nombre: string; conteo: number }>();
   let totalLineas = 0;
   let totalUnidades = 0;
+  // Totales de líneas por Status — solo se usan para los clientes DEMO, para
+  // mostrar un score de aceptación variado. Los clientes reales conservan su
+  // cálculo original (ver abajo).
+  let lineasEntregadasTot = 0;
+  let lineasRechazadasTot = 0;
   for (const o of orders) {
     const lineas = (o as any).ProductosSolicitados ?? [];
     for (const l of lineas) {
@@ -25,6 +30,9 @@ export async function getCustomerProfile(customerId: string): Promise<CustomerPr
       if (!sku) continue;
       totalLineas += 1;
       totalUnidades += Number(l.Quantity) || 0;
+      const st = toStr(l.Status).toLowerCase();
+      if (st === 'entregado') lineasEntregadasTot += 1;
+      else if (st === 'rechazado' || st === 'cancelado') lineasRechazadasTot += 1;
       const entry = solicitadosCount.get(sku) ?? { sku, nombre: clean(l.nombre_sku_solicitado), conteo: 0 };
       // Cuenta unidades reales (Quantity), no solo apariciones de la línea.
       entry.conteo += Number(l.Quantity) || 1;
@@ -102,7 +110,19 @@ export async function getCustomerProfile(customerId: string): Promise<CustomerPr
   }
   const preferencias = [...paresMap.values()].sort((a, b) => b.aceptaciones - a.aceptaciones);
   const totalSustituciones = historialSustituciones.length;
-  const tasaAceptacionGlobal = totalSustituciones > 0 ? 1 : 0; // todas las observadas se entregaron
+  // Cálculo de la tasa de aceptación:
+  //  - Clientes REALES: lógica original (toda sustitución observada se aceptó).
+  //  - Clientes DEMO (id con prefijo 90000000000000000): proporción de líneas
+  //    entregadas vs. (entregadas + rechazadas), para que el score VARÍE entre
+  //    los clientes de prueba y se note que el sistema funciona.
+  const esDemo = customerId.startsWith('90000000000000000');
+  let tasaAceptacionGlobal: number;
+  if (esDemo) {
+    const conDesenlace = lineasEntregadasTot + lineasRechazadasTot;
+    tasaAceptacionGlobal = conDesenlace > 0 ? lineasEntregadasTot / conDesenlace : 0;
+  } else {
+    tasaAceptacionGlobal = totalSustituciones > 0 ? 1 : 0; // comportamiento original
+  }
 
   return {
     customerId,

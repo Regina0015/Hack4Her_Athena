@@ -10,6 +10,8 @@
     "start": "node dist/server.js",
     "import": "tsx src/scripts/import-csv.ts",
     "seed:stock": "tsx src/scripts/seed-stock.ts",
+    "seed:demo": "tsx src/scripts/seed-demo.ts",
+    "seed:demo:extra": "tsx src/scripts/seed-demo-extra.ts",
     "smoke": "tsx src/scripts/smoke-test.ts"
   },
   "dependencies": {

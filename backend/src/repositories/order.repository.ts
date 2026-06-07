@@ -3,7 +3,8 @@ import { Order } from '../models/Order.js';
 
 export const orderRepository = {
   findAll(filter: Record<string, unknown> = {}, skip = 0, limit = 50) {
-    return Order.find(filter).skip(skip).limit(limit).lean();
+    // `demo: -1` muestra los pedidos demo primero; `_id: 1` deja el resto estable.
+    return Order.find(filter).sort({ demo: -1, _id: 1 }).skip(skip).limit(limit).lean();
   },
 
   count(filter: Record<string, unknown> = {}) {
