@@ -317,5 +317,30 @@ export function emojiForProduct(nombre: string): string {
   return "🥫";
 }
 
+/**
+ * Imagen real del producto por marca/palabra clave del nombre. Devuelve la ruta
+ * del PNG en /products si hay match, o null para que la UI use el emoji como
+ * respaldo. Los archivos viven en supply-harmony/public/products/.
+ */
+export function imageForProduct(nombre: string): string | null {
+  const n = nombre.toLowerCase();
+  // El orden importa: primero las marcas/sabores más específicos.
+  if (n.includes("topo chico")) return "/products/topo-chico.png";
+  if (n.includes("fuze")) return "/products/fuze-tea.png";
+  if (n.includes("powerade")) return "/products/powerade-azul.png";
+  if (n.includes("lonchys") || n.includes("fideo")) return "/products/Lonchys-fideos.png";
+  if (n.includes("vianda") || n.includes("alegría") || n.includes("alegria"))
+    return "/products/Vianda-alegria.png";
+  // Variantes Toni por sabor; el genérico (mix/yogurt/leche Toni) cae al mix.
+  if (n.includes("toni") || n.includes("chiqui") || n.includes("yogurt mix")) {
+    if (n.includes("chocolate")) return "/products/toni-chocolate.png";
+    if (n.includes("frutilla") || n.includes("fresa")) return "/products/toni-frutilla.png";
+    return "/products/toni-mix.png";
+  }
+  // "coca" cubre Coca-Cola y variantes (Zero, Light, Sin Azúcar) — misma imagen.
+  if (n.includes("coca")) return "/products/coca-cola.png";
+  return null;
+}
+
 /** Convierte 0..1 a porcentaje entero. */
 export const pct = (v: number) => Math.round((v ?? 0) * 100);

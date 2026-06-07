@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, Brain, Gauge, CalendarClock, Lightbulb } from "lucide-react";
 import { type Product } from "@/lib/mock-data";
-import { api, emojiForProduct, type InventoryItem } from "@/lib/api/client";
+import { api, emojiForProduct, imageForProduct, type InventoryItem } from "@/lib/api/client";
 import { RiskBadge } from "@/components/platform/ui";
 import { Sparkline, MiniBars } from "@/components/platform/charts";
 import { cn } from "@/lib/utils";
@@ -42,6 +42,23 @@ function toProduct(it: InventoryItem): RealProduct {
   };
 }
 
+/** Miniatura del producto: imagen real si existe, emoji como respaldo. */
+function ProductThumb({ name, className }: { name: string; className?: string }) {
+  const src = imageForProduct(name);
+  if (src) {
+    return (
+      <span className={cn("grid place-items-center overflow-hidden rounded-2xl bg-white", className)}>
+        <img src={src} alt={name} loading="lazy" className="h-full w-full object-contain p-1" />
+      </span>
+    );
+  }
+  return (
+    <span className={cn("grid place-items-center rounded-2xl bg-gradient-brand-soft text-2xl", className)}>
+      {emojiForProduct(name)}
+    </span>
+  );
+}
+
 function Inventory() {
   const [selected, setSelected] = useState<RealProduct | null>(null);
   const inventoryQ = useQuery({ queryKey: ["inventory"], queryFn: api.inventory });
@@ -78,9 +95,7 @@ function Inventory() {
             )}
           >
             <div className="flex items-start justify-between">
-              <span className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-brand-soft text-2xl">
-                {p.emoji}
-              </span>
+              <ProductThumb name={p.name} className="h-14 w-14" />
               <RiskBadge risk={p.risk} />
             </div>
             <p className="mt-4 text-lg font-bold text-foreground">
@@ -117,7 +132,7 @@ function Inventory() {
           <div className="absolute right-0 top-0 flex h-full w-[min(440px,100vw)] flex-col overflow-y-auto bg-card shadow-card animate-slide-in-right">
             <div className="flex items-center justify-between bg-gradient-brand p-6 text-primary-foreground">
               <div className="flex items-center gap-3">
-                <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/15 text-2xl">{selected.emoji}</span>
+                <ProductThumb name={selected.name} className="h-14 w-14" />
                 <div>
                   <p className="text-lg font-extrabold">{selected.name}</p>
                   <p className="text-sm text-primary-foreground/80">{selected.size}</p>
