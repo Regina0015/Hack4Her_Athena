@@ -1,0 +1,271 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Pythia · Arca Continental — Design System
+ * Brand identity: Morado #7B3FE4 (Pythia), Guindo #7A0026, Blanco, Grises.
+ * Rojo #E30613 reservado para estados de riesgo / alertas.
+ * Estética: Apple / Linear / Stripe / Notion / Arc. Cards elevadas, bordes
+ * suaves, gradientes morado→guindo, glassmorphism ligero, microinteracciones.
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+  --radius-3xl: calc(var(--radius) + 20px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+
+  --color-guindo: var(--guindo);
+  --color-guindo-foreground: var(--guindo-foreground);
+  --color-ai: var(--ai);
+  --color-ai-foreground: var(--ai-foreground);
+  --color-ai-soft: var(--ai-soft);
+
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 1.25rem;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.205 0.02 25);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.205 0.02 25);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.205 0.02 25);
+
+  /* Morado Pythia #7B3FE4 — color de marca principal */
+  --primary: oklch(0.555 0.245 295);
+  --primary-foreground: oklch(0.99 0 0);
+
+  /* Fondo secundario #F7F7F7 sirve como secondary surface */
+  --secondary: oklch(0.971 0.004 295);
+  --secondary-foreground: oklch(0.27 0.03 295);
+
+  --muted: oklch(0.971 0.004 295);
+  --muted-foreground: oklch(0.55 0.02 295);
+
+  --accent: oklch(0.962 0.02 295);
+  --accent-foreground: oklch(0.42 0.2 295);
+
+  /* Rojo #E30613 — reservado para riesgo / destructivo */
+  --destructive: oklch(0.585 0.232 27.5);
+  --destructive-foreground: oklch(0.99 0 0);
+
+  --border: oklch(0.922 0.006 295);
+  --input: oklch(0.922 0.006 295);
+  --ring: oklch(0.555 0.245 295);
+
+  /* Guindo Corporativo #7A0026 */
+  --guindo: oklch(0.345 0.155 13);
+  --guindo-foreground: oklch(0.99 0 0);
+
+  /* Morado IA — mismo lenguaje que la marca Pythia */
+  --ai: oklch(0.6 0.25 300);
+  --ai-foreground: oklch(0.99 0 0);
+  --ai-soft: oklch(0.955 0.03 300);
+
+  --success: oklch(0.62 0.16 150);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.72 0.17 55);
+  --warning-foreground: oklch(0.25 0.05 55);
+
+  --chart-1: oklch(0.555 0.245 295);
+  --chart-2: oklch(0.345 0.155 13);
+  --chart-3: oklch(0.6 0.25 300);
+  --chart-4: oklch(0.585 0.232 27.5);
+  --chart-5: oklch(0.55 0.02 295);
+
+  /* Gradientes de marca Pythia (morado → guindo) */
+  --gradient-brand: linear-gradient(135deg, oklch(0.555 0.245 295), oklch(0.345 0.155 13));
+  --gradient-brand-soft: linear-gradient(135deg, oklch(0.555 0.245 295 / 0.12), oklch(0.345 0.155 13 / 0.1));
+  --gradient-ai: linear-gradient(135deg, oklch(0.62 0.25 300), oklch(0.5 0.24 285));
+
+  /* Sombras suaves elevadas */
+  --shadow-soft: 0 1px 2px oklch(0.2 0.03 295 / 0.04), 0 8px 24px -8px oklch(0.2 0.03 295 / 0.08);
+  --shadow-card: 0 2px 8px -2px oklch(0.2 0.03 295 / 0.06), 0 20px 40px -16px oklch(0.2 0.03 295 / 0.12);
+  --shadow-brand: 0 12px 32px -10px oklch(0.555 0.245 295 / 0.45);
+  --shadow-ai: 0 12px 32px -10px oklch(0.6 0.25 300 / 0.45);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.3 0.02 295);
+  --sidebar-primary: oklch(0.555 0.245 295);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.965 0.018 295);
+  --sidebar-accent-foreground: oklch(0.42 0.2 295);
+  --sidebar-border: oklch(0.93 0.006 295);
+  --sidebar-ring: oklch(0.555 0.245 295);
+}
+
+.dark {
+  --background: oklch(0.18 0.015 20);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.22 0.018 20);
+  --card-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.22 0.018 20);
+  --popover-foreground: oklch(0.97 0 0);
+  --primary: oklch(0.62 0.25 297);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.26 0.02 20);
+  --secondary-foreground: oklch(0.97 0 0);
+  --muted: oklch(0.26 0.02 20);
+  --muted-foreground: oklch(0.7 0.012 25);
+  --accent: oklch(0.3 0.05 20);
+  --accent-foreground: oklch(0.97 0 0);
+  --destructive: oklch(0.62 0.232 27.5);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.62 0.25 297);
+  --guindo: oklch(0.45 0.17 13);
+  --guindo-foreground: oklch(0.99 0 0);
+  --ai: oklch(0.62 0.24 295);
+  --ai-foreground: oklch(0.99 0 0);
+  --ai-soft: oklch(0.3 0.06 295);
+  --success: oklch(0.65 0.16 150);
+  --warning: oklch(0.75 0.17 55);
+  --sidebar: oklch(0.2 0.018 20);
+  --sidebar-foreground: oklch(0.92 0 0);
+  --sidebar-primary: oklch(0.62 0.25 297);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.28 0.04 297);
+  --sidebar-accent-foreground: oklch(0.97 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.62 0.25 297);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@utility text-gradient-brand {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility bg-gradient-brand {
+  background-image: var(--gradient-brand);
+}
+
+@utility bg-gradient-brand-soft {
+  background-image: var(--gradient-brand-soft);
+}
+
+@utility bg-gradient-ai {
+  background-image: var(--gradient-ai);
+}
+
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+@utility shadow-brand {
+  box-shadow: var(--shadow-brand);
+}
+
+@utility shadow-ai {
+  box-shadow: var(--shadow-ai);
+}
+
+@utility glass {
+  background-color: color-mix(in oklab, var(--card) 70%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--ai) 45%, transparent); }
+  70% { box-shadow: 0 0 0 14px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@utility animate-float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+@utility animate-pulse-ring {
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0.6; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@utility animate-slide-in-right {
+  animation: slide-in-right 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}

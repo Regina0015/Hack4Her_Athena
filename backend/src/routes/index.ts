@@ -5,6 +5,7 @@ import * as orders from '../controllers/order.controller.js';
 import * as customers from '../controllers/customer.controller.js';
 import * as inventory from '../controllers/inventory.controller.js';
 import * as portal from '../controllers/portal.controller.js';
+import * as chat from '../controllers/chat.controller.js';
 
 const router = Router();
 
@@ -37,5 +38,8 @@ router.get('/inventory/critical', asyncWrapper(inventory.criticalInventoryHandle
 // Portal del cliente
 router.get('/portal/:customerId/pending', asyncWrapper(portal.pendingHandler));
 router.post('/portal/:customerId/preferences', asyncWrapper(portal.savePreferencesHandler));
+
+// Chat Pythia (IA)
+router.post('/chat', asyncWrapper(chat.chatHandler));
 
 export default router;
