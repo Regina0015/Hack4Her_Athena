@@ -38,6 +38,9 @@ router.get('/inventory/critical', asyncWrapper(inventory.criticalInventoryHandle
 
 // Portal del cliente
 router.get('/portal/:customerId/pending', asyncWrapper(portal.pendingHandler));
+router.get('/portal/:customerId/inventory', asyncWrapper(portal.inventoryHandler));
+router.get('/portal/:customerId/growth', asyncWrapper(portal.growthHandler));
+router.post('/portal/:customerId/survey', asyncWrapper(portal.surveyHandler));
 router.post('/portal/:customerId/preferences', asyncWrapper(portal.savePreferencesHandler));
 
 // Chat Pythia (IA)

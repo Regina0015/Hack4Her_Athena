@@ -187,6 +187,47 @@ export interface ChatReply {
   fuente: "gemini" | "fallback";
 }
 
+/* ---- Portal del cliente: inventario, crecimiento y encuesta ---- */
+
+export interface PortalProduct {
+  sku: string;
+  nombre: string;
+  unidades: number;
+  pendientes: number;
+  entregadas: number;
+}
+
+export interface PortalInventory {
+  totalSkus: number;
+  totalUnidades: number;
+  porAgotarse: number;
+  mayorRotacion: PortalProduct[];
+  menorRotacion: PortalProduct[];
+  proximosAgotarse: PortalProduct[];
+  tendencia: number[];
+}
+
+export interface GrowthOpportunity {
+  sku: string;
+  nombre: string;
+  text: string;
+  impact: string;
+  confidence: number;
+}
+
+export interface PortalGrowth {
+  score: number;
+  oportunidades: GrowthOpportunity[];
+}
+
+export interface SurveyInput {
+  pedidoCompleto: boolean | null;
+  sustitucionAdecuada: boolean | null;
+  entregaATiempo: boolean | null;
+  estrellas: number;
+  comentario: string;
+}
+
 /* ===================== Funciones de API ===================== */
 
 export const api = {
@@ -222,6 +263,12 @@ export const api = {
   // Portal del cliente
   pending: (customerId: string) =>
     get<PendingSubstitution[]>(`/portal/${encodeURIComponent(customerId)}/pending`),
+  portalInventory: (customerId: string) =>
+    get<PortalInventory>(`/portal/${encodeURIComponent(customerId)}/inventory`),
+  portalGrowth: (customerId: string) =>
+    get<PortalGrowth>(`/portal/${encodeURIComponent(customerId)}/growth`),
+  saveSurvey: (customerId: string, survey: SurveyInput) =>
+    post(`/portal/${encodeURIComponent(customerId)}/survey`, survey),
   savePreferences: (
     customerId: string,
     preferencias: { skuSolicitado: string; skuPreferidoSustituto: string; nombreSustituto?: string }[],
